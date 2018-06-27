@@ -58,9 +58,9 @@ class ExcelHandle(object):
             return value
 
     @staticmethod
-    def add_style(sheet, cols, set_cols=None, sflag=False):
-        if not set_cols:
-            set_cols = [u'地址', u'资产名称', u'添加/发现时间', u'管理员', u'安全状态']
+    def add_style(sheet, cols, cols_set=None, sflag=False):
+        if not cols_set:
+            cols_set = [u'地址', u'资产名称', u'添加/发现时间', u'管理员', u'安全状态']
 
         if sflag == 1 or sflag == '1':
             style = xlwt.XFStyle()  # 创建样式
@@ -70,36 +70,41 @@ class ExcelHandle(object):
             style.alignment = alignment  # 给样式添加文字居中属性
             # style.font.height = 430  # 设置字体大小
         
-            for j, col_value in enumerate(cols):
-                for col in set_cols:
-                    if col == col_value:
+            for j, j_value in enumerate(cols):
+                for j_set in cols_set:
+                    if j_set == j_value:
                         sheet.col(j).width = 4000  # 设置第j列的宽
             return style
         elif sflag == 2 or sflag == '2':
-            for j, col_value in enumerate(cols):
-                for col in set_cols:
-                    if col == col_value:
-                        C = ExcelHandle.column_map(j)
-                        sheet.column_dimensions[C].width = 13
+            try:
+                for j, j_value in enumerate(cols):
+                    for j_set in cols_set:
+                        if j_set == j_value:
+                            C = ExcelHandle.column_map(j)
+                            sheet.column_dimensions[C].width = 13
+                return True              
+            except Exception as e:
+                print(e)
+                return False
 
     @staticmethod
-    def get_default(value, v_type):
-        if not value:
-            v_type = v_type.lower()
-            if v_type.startswith('h'):
+    def get_default(data, tflag):
+        if not data:
+            tflag = tflag.lower()
+            if tflag.startswith('h'):
                 default = (u'序号', u'地址', u'资产名称', u'添加/发现时间', u'管理员', u'安全状态', u'可用性', u'备注')
-            elif v_type.startswith('b'):
+            elif tflag.startswith('b'):
                 default = ('id', 'address', 'name', 'found_time', 'administrator', 'safe_state', 'availability', 'description')
             else:
                 default = tuple()
         else:
-            default = tuple(value)
+            default = tuple(data)
         return default
 
     # 2007版以前的Excel（xls结尾的），需要使用xlrd读，xlwt写
     @classmethod
-    def save_xls_file(cls, fpath, fname, body, head=None, body_keys=None, sflag=0, sheet_name='Sheet1'):
-        if not body or not isinstance(body, Iterable):
+    def save_xls_file(cls, fpath, fname, data, head=None, data_keys=None, sflag=0, sheet_name='Sheet1'):
+        if not data or not isinstance(data, Iterable):
             return False
         head = cls.get_default(head, 'h')
         try:
@@ -115,17 +120,17 @@ class ExcelHandle(object):
                 sheet.write(0, j, h_value, style)
 
             # save body
-            if isinstance(body[0], dict):
-                body_keys = cls.get_default(body_keys, 'b')
-                for i, item in enumerate(body):
-                    for j, key in enumerate(body_keys):
+            if isinstance(data[0], dict):
+                data_keys = cls.get_default(data_keys, 'b')
+                for i, item in enumerate(data):
+                    for j, key in enumerate(data_keys):
                         b_value = cls.to_unicode(item.get(key))
                         sheet.write(i+1, j, b_value, style)
 
-            elif isinstance(body[0], (list, tuple)):
-                for i in range(0, len(body)):
-                    for j in range(0, len(body[i])):
-                        b_value = cls.to_unicode(body[i][j])
+            elif isinstance(data[0], (list, tuple)):
+                for i in range(0, len(data)):
+                    for j in range(0, len(data[i])):
+                        b_value = cls.to_unicode(data[i][j])
                         sheet.write(i+1, j, b_value)
             book.save(full_path)
             return True            
@@ -135,8 +140,8 @@ class ExcelHandle(object):
 
     # 2007版以后的Excel（xlsx结尾的），需要使用openpyxl来读写
     @classmethod
-    def save_xlsx07_file(cls, fpath, fname, body, head=None, body_keys=None, sflag='2', sheet_name='Sheet1'):
-        if not body or not isinstance(body, Iterable):
+    def save_xlsx07_file(cls, fpath, fname, data, head=None, data_keys=None, sflag='2', sheet_name='Sheet1'):
+        if not data or not isinstance(data, Iterable):
             return False
         head = cls.get_default(head, 'h')
         try:
@@ -154,16 +159,16 @@ class ExcelHandle(object):
                 sheet.cell(row=1, column=j+1, value=h_value)
 
             # save body
-            if isinstance(body[0], dict):
-                body_keys = cls.get_default(body_keys, 'b')
-                for i, item in enumerate(body):
-                    for j, key in enumerate(body_keys):
+            if isinstance(data[0], dict):
+                data_keys = cls.get_default(data_keys, 'b')
+                for i, item in enumerate(data):
+                    for j, key in enumerate(data_keys):
                         b_value = item.get(key)
                         sheet.cell(row=i+2, column=j+1, value=b_value)
-            elif isinstance(body[0], (list, tuple)):
-                for i in range(0, len(body)):
-                    for j in range(0, len(body[i])):
-                        b_value = body[i][j]
+            elif isinstance(data[0], (list, tuple)):
+                for i in range(0, len(data)):
+                    for j in range(0, len(data[i])):
+                        b_value = data[i][j]
                         sheet.cell(row=i+2, column=j+1, value=b_value)
             book.save(full_path)
             return True
@@ -172,16 +177,16 @@ class ExcelHandle(object):
             return False
 
 
-def test_save_xls_file(fpath, fname, body, head):
-    ret = ExcelHandle.save_xls_file(fpath, fname, body, head, sflag=1)
+def test_save_xls(fpath, fname, data, head):
+    ret = ExcelHandle.save_xls_file(fpath, fname, data, head, sflag=1)
     if not ret:
         print("save xls file[{}] failed!".format(fname))
     else:
         print("save xls file[{}] success!".format(fname))
 
 
-def test_save_xlsx07_file(fpath, fname, body, head):
-    ret = ExcelHandle.save_xlsx07_file(fpath, fname, body, head)
+def test_save_xlsx07(fpath, fname, data, head):
+    ret = ExcelHandle.save_xlsx07_file(fpath, fname, data, head)
     if not ret:
         print("save xls file[{}] failed!".format(fname))
     else:
@@ -192,11 +197,11 @@ def main():
     f_path = './'
     f_name = 'demo2.xls'
     head = (u'序号', u'地址', u'资产名称', u'添加/发现时间', u'管理员', u'安全状态', u'可用性', u'备注')
-    body = [{'id': 1, 'address':'127.0.0.1', 'name':'bbb', 'found_time':'2012/03/06', 'administrator':'admin', 'safe_state':'safe1111', 'description':1}, 
+    data = [{'id': 1, 'address':'127.0.0.1', 'name':'bbb', 'found_time':'2012/03/06', 'administrator':'admin', 'safe_state':'safe1111', 'description':1}, 
             {'id': 2, 'address':'xxx.x.x.x', 'name':'cc', 'found_time':'2012/03/06', 'administrator':'safe1111', 'safe_state':'safe22', 'description':'你好', 'aa':'nihao'}]
 
-    # test_save_xls_file(f_path, f_name, body, head)
-    test_save_xlsx07_file(f_path, f_name, body, head)
+    test_save_xls(f_path, f_name, data, head)
+    # test_save_xlsx07(f_path, f_name, data, head)
 
 
 if __name__ == "__main__":
